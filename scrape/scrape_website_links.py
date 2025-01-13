@@ -34,15 +34,26 @@ async def scrape_and_validate_links(url):
     links = await fetch_links(url)
     print(f"Found {len(links)} links.")
 
-    async with aiohttp.ClientSession() as session:
-        tasks = [check_link_status(link, session) for link in links]
-        results = await asyncio.gather(*tasks)
+    try:
+        async with aiohttp.ClientSession() as session:
+            tasks = [check_link_status(link, session) for link in links]
+            results = await asyncio.gather(*tasks)
 
-    for link, status in results:
-        if not str(status).startswith('2'):
-            pass
-            # print(f"{link} - Status: {status}")
-        else:
-            valid_links.append(link)
-    print(f"Successfully scrape {len(valid_links)} links in the following time intervals: {time.time() - start_time}")
-    return valid_links
+        for link, status in results:
+            if not str(status).startswith('2'):
+                pass
+                # print(f"{link} - Status: {status}")
+            else:
+                valid_links.append(link)
+        print(f"Successfully scrape {len(valid_links)} links in the following time intervals: {time.time() - start_time}")
+        return valid_links
+    except Exception as e:
+        print(f"Error generating valid links: {e}")
+        return []
+
+
+# async def main(url):
+#     await scrape_and_validate_links(url)
+
+# if __name__ == "__main__":
+#     asyncio.run(main(url="https://aigrant.com/"))

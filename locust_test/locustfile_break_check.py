@@ -1,168 +1,155 @@
-import subprocess
-import os
-import time
-from typing import List
-import signal
-import psutil
-
-class ConcurrentLocustRunner:
-    def __init__(self, urls: List[str]):
-        self.urls = urls
-        self.base_dir = "performance_tests/break_check"
-        self.processes = []
-        
-        # Create necessary directories
-        os.makedirs(self.base_dir, exist_ok=True)
-        
-    def generate_locust_file(self, url: str, index: int) -> str:
-        """Generate a unique Locust file for each URL"""
-        filename = f"{self.base_dir}/locustfile_{index}.py"
-        
-        content = f'''
-from locust import HttpUser, task, constant, events
+from typing import List, Optional
+from pathlib import Path
+import json
 from datetime import datetime
-
 import logging
 import sys
+from locust import HttpUser, task, constant, events
+import asyncio
+from asyncio import create_subprocess_exec, gather
+from asyncio.subprocess import PIPE
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
+locust_logger = logging.getLogger('locust_output')
+locust_logger.setLevel(logging.INFO)
 
-class URLTestUser(HttpUser):
+class WebsiteUser(HttpUser):
     wait_time = constant(0)
-    host = ''  # Base host is empty since we're using full URLs
 
+    def on_start(self):
+        self.target_url = self.environment.host
+        
     @task
-    def test_url(self):
-        with self.client.get("{url}", catch_response=True) as response:
-            if response.status_code == 200:
-                response.success()
-            else:
-                response.failure(f"Failed with status {{response.status_code}}")
+    def test_endpoint(self):
+        self.client.get(self.target_url)
 
 @events.quitting.add_listener
-def on_quitting(environment, **kwargs):
-    logger.info("Locust process shutting down...")
-    sys.exit(0)
+def save_results(environment, **kwargs):
+    """Save test results to JSON file"""
+    stats = []
+    for stat in environment.stats.entries.values():
+        stats.append({
+            "endpoint": stat.name,
+            "method": stat.method,
+            "requests": stat.num_requests,
+            "failures": stat.num_failures,
+            "median_response_time": stat.median_response_time,
+            "average_response_time": stat.avg_response_time,
+            "min_response_time": stat.min_response_time,
+            "max_response_time": stat.max_response_time,
+        })
 
-# Log successful requests
-@events.request.add_listener
-def on_request_success(request_type, name, response_time, response_length, **kwargs):
-    with open("{self.base_dir}/success_log_{index}.csv", "a") as f:
-        f.write(f"{{datetime.now()}},{{request_type}},{{name}},{{response_time}},{{response_length}}\\n")
+    report = {
+        "target_url": environment.host,
+        "total_requests": environment.stats.total.num_requests,
+        "total_failures": environment.stats.total.num_failures,
+        "average_response_time": environment.stats.total.avg_response_time,
+        "median_response_time": environment.stats.total.median_response_time,
+        "min_response_time": environment.stats.total.min_response_time,
+        "max_response_time": environment.stats.total.max_response_time,
+        "stats": stats,
+        "timestamp": datetime.now().isoformat(),
+        "test_duration": getattr(environment.stats.total, 'last_request_timestamp', 0) - 
+                        getattr(environment.stats.total, 'start_time', 0)
+    }
 
-# Log failed requests
-@events.request.add_listener
-def on_request_failure(request_type, name, response_time, exception, **kwargs):
-    with open("{self.base_dir}/failure_log_{index}.csv", "a") as f:
-        f.write(f"{{datetime.now()}},{{request_type}},{{name}},{{response_time}},{{exception}}\\n")
-'''
-        
-        with open(filename, 'w') as f:
-            f.write(content)
-        
-        return filename
+    results_dir = Path("performance_tests/break_check")
+    results_dir.mkdir(parents=True, exist_ok=True)
 
-    def kill_process_tree(self, pid):
-        """Kill a process and all its children"""
-        try:
-            parent = psutil.Process(pid)
-            children = parent.children(recursive=True)
-            
-            # Kill children
-            for child in children:
-                try:
-                    child.kill()
-                except psutil.NoSuchProcess:
-                    pass
-            
-            # Kill parent
-            try:
-                parent.kill()
-            except psutil.NoSuchProcess:
-                pass
-            
-        except psutil.NoSuchProcess:
-            pass
+    url_part = environment.host.replace('https://', '').replace('http://', '').replace('/', '_').replace('.', '_')
+    filename = results_dir / f"{url_part}.json"
+    
+    with open(filename, "w") as f:
+        json.dump(report, f, indent=4)
+    logger.info(f"Test results saved to {filename}")
 
-    def start_locust_process(self, locust_file: str, index: int) -> subprocess.Popen:
-        """Start a Locust process for a specific file"""
-        csv_base = f"{self.base_dir}/results_{index}"
-        
+class LoadTestRunner:
+    """Manages execution of load tests for URLs"""
+    
+    def __init__(self, base_dir: str = "performance_tests"):
+        self.base_dir = Path(base_dir)
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+
+    async def _run_single_test(self, url: str, users: int, spawn_rate: int, run_time: str) -> None:
+        """Run a load test for a single URL"""
         cmd = [
-            'locust',
-            '-f', locust_file,
+            sys.executable,
+            '-m', 'locust',
+            '-f', __file__,
             '--headless',
-            '-u', '1000',  # Number of users
-            '-r', '100',   # Spawn rate
-            '--run-time', '5s',
-            f'--csv={csv_base}'
+            '-u', str(users),
+            '-r', str(spawn_rate),
+            '--run-time', run_time,
+            '--only-summary',
+            '--host', url
         ]
-        
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            # preexec_fn=os.setsid  # Create new process group
-        )
-        return process
-
-    def cleanup(self, signum=None, frame=None):
-        """Clean up all running processes"""
-        print("\nCleaning up processes...")
-        for process in self.processes:
-            if process.poll() is None:  # If process is still running
-                try:
-                    self.kill_process_tree(process.pid)
-                except Exception as e:
-                    print(f"Error killing process {process.pid}: {e}")
-
-        # Wait for processes to terminate
-        for process in self.processes:
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.kill_process_tree(process.pid)
-
-        print("Cleanup completed")
-
-
-    def run_tests(self):
-        """Run Locust tests for all URLs concurrently"""
-        # Set up signal handlers for graceful shutdown
-        signal.signal(signal.SIGINT, self.cleanup)
-        signal.signal(signal.SIGTERM, self.cleanup)
 
         try:
-            # Start all processes
-            for index, url in enumerate(self.urls):
-                locust_file = self.generate_locust_file(url, index)
-                process = self.start_locust_process(locust_file, index)
-                self.processes.append(process)
-                print(f"Started Locust process for {url}")
-                time.sleep(1)  # Small delay between starts
+            process = await create_subprocess_exec(
+                *cmd,
+                stdout=PIPE,
+                stderr=PIPE
+            )
 
-            # Wait for all processes to complete
-            print("\nWaiting for all tests to complete...")
-            
-            # Set a timeout for the entire test suite
-            start_time = time.time()
-            timeout = 35  # 5 seconds more than the test runtime
-            
-            while time.time() - start_time < timeout:
-                if all(p.poll() is not None for p in self.processes):
+            while True:
+                line = await process.stdout.readline()
+                if not line:
                     break
-                time.sleep(1)
+                text = line.decode().strip()
+                if text:
+                    logger.info(f"[{url}] {text}")
+
+            await process.wait()
             
-            # Force cleanup if timeout reached
-            self.cleanup()
-
         except Exception as e:
-            print(f"Error occurred: {e}")
-            self.cleanup()
+            logger.error(f"Error testing {url}: {e}")
+        finally:
+            if process and process.returncode is None:
+                process.terminate()
+                await process.wait()
 
-async def run_break_test(URLS: list):
-    print("Running break test ...")
-    runner = ConcurrentLocustRunner(urls=URLS)
-    runner.run_tests()
+    async def run_concurrent_tests(self, urls: List[str], users: int = 1000, 
+                                 spawn_rate: int = 1000, run_time: str = "30") -> None:
+        """Run load tests for multiple URLs concurrently"""
+        unique_urls = list(dict.fromkeys(urls))
+        logger.info(f"Starting concurrent tests for {len(unique_urls)} URLs")
+        
+        tasks = [
+            self._run_single_test(url, users, spawn_rate, run_time)
+            for url in unique_urls
+        ]
+        await gather(*tasks)
+
+def run_break_test(urls: List[str], run_time: Optional[int] = 30):
+    """Main entry point for running load tests"""
+    if not urls:
+        logger.error("No URLs provided")
+        return
+
+    run_time_str = str(run_time)
+    runner = LoadTestRunner()
+    
+    try:
+        asyncio.run(runner.run_concurrent_tests(
+            urls=urls,
+            users=1000,
+            spawn_rate=1000,
+            run_time=run_time_str
+        ))
+        logger.info("Load tests completed successfully")
+    except KeyboardInterrupt:
+        logger.info("Tests interrupted by user")
+    except Exception as e:
+        logger.error(f"Tests failed with error: {e}")
+
+# if __name__ == "__main__":
+#     test_urls = [
+#         "https://example.com",
+#         "https://anotherexample.com"
+#     ]
+#     run_load_tests(test_urls)

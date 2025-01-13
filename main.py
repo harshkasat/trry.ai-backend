@@ -1,9 +1,12 @@
 import asyncio
+import aiofiles
+import shutil
 import os
 import time
 import sys
 import logging
 import json
+from typing import Optional
 from scrape.scrape_website_links import scrape_and_validate_links
 from llm.config import ApiClient
 from automation import device_dimensions, create_stealth_driver
@@ -11,7 +14,6 @@ from automation.take_screenshot import TakeScreenshot
 from locust_test.locustfile_break_check import run_break_test
 from locust_test.locustfile_stress_check import run_stress_test
 from lighthouse_metrics import performance_metrics
-import aiofiles
 
 # Configure logging
 logging.basicConfig(
@@ -24,7 +26,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def capture_screenshots_for_urls(urls, save_dir):
+async def capture_screenshots_for_urls(urls, save_dir:Optional[str] = "Z:/trryfix.ai/capture_screenshots"):
     """Capture screenshots for multiple URLs and devices asynchronously."""
     try:
         tasks = []
@@ -39,36 +41,50 @@ async def capture_screenshots_for_urls(urls, save_dir):
         logger.info(f"Screenshot capturing completed in {time.time() - start_time} seconds.")
     except Exception as e:
         logger.error(f"Error capturing screenshots: {e}")
+    finally:
+        shutil.make_archive(save_dir, 'zip', save_dir)
 
 
 async def performance_test(URLS):
     """Run performance tests asynchronously."""
     try:
         start_time = time.time()
+        file_path = 'performance_tests'
         await asyncio.gather(
-            run_break_test(URLS=URLS),
-            run_stress_test(URLS=URLS)
+            run_break_test(URLS=URLS, run_time=5),
+            run_stress_test(URLS=URLS, run_time=5)
         )
         logger.info(f"Performance tests completed in {time.time() - start_time} seconds.")
     except Exception as e:
         logger.error(f"Error running performance tests: {e}")
+    finally:
+        shutil.make_archive(file_path, 'zip', file_path)
 
 async def generate_valid_links(target_url):
     """Scrape and validate links, then generate a summary report using LLM."""
     try:
         start_time = time.time()
         links = await scrape_and_validate_links(target_url)
+        if links:
 
-        content = f'Give me links that are important website :- {links} that are very important'
-        llm = ApiClient().generate_content(content)
-        valid_links = json.loads(llm.text)[0]['response'][:4]
+            content = f'Give me links that are important website :- {links} that are very important'
+            llm = ApiClient().generate_content(content)
+            valid_links = json.loads(llm.text)[0]['response'][:4]
 
-        # Write links to valid_urls.txt asynchronously
-        async with aiofiles.open('valid_urls.txt', 'w') as file:
-            await file.writelines([f"{link}\n" for link in valid_links])
+            # Write links to valid_urls.txt asynchronously
+            async with aiofiles.open('valid_urls.txt', 'w') as file:
+                await file.writelines([f"{link}\n" for link in valid_links])
+            
+            logger.info(f"Generated valid links in {time.time() - start_time} seconds.")
+            return valid_links
+        else:
+            logger.info("No valid links found. Exiting...")
+            # Write links to valid_urls.txt asynchronously
+            async with aiofiles.open('valid_urls.txt', 'w') as file:
+                await file.writelines(target_url)
 
-        logger.info(f"Generated valid links in {time.time() - start_time} seconds.")
-        return valid_links
+            return target_url
+
     except Exception as e:
         logger.error(f"Error generating valid links: {e}")
         return []
@@ -99,7 +115,7 @@ async def main(target_url):
 
         # Step 2: Run all tasks asynchronously
         tasks = [
-            capture_screenshots_for_urls(valid_links, save_dir),
+            capture_screenshots_for_urls(valid_links),
             performance_test(valid_links),
             run_performance_metrics(target_url)
         ]
@@ -112,10 +128,12 @@ async def main(target_url):
     except Exception as e:
         logger.error(f"Error occurred: {e}")
     finally:
-        # if save_dir and os.path.exists(save_dir):
-        #     os.remove(save_dir)  # Remove directory
         sys.exit(0)
+        os.remove(save_dir)
+
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    target_url="https://aigrant.com/"
+    asyncio.run(main(target_url="https://aigrant.com/"))
+    # asyncio.run(generate_valid_links(target_url))    
