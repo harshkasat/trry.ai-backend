@@ -1,32 +1,21 @@
-
-import aiohttp
+import httpx
 import asyncio
 import json
-
-# # Start time
-# start_time = time.time()
-# json_string = requests.get("https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=https://www.tryfix.ai/").json()
-# # End time
 
 
 async def fetch(url):
     google_api = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=" + url
-    async with aiohttp.ClientSession() as session:
-        async with session.get(google_api) as response:
-            print("Successfully fetched")
-            return await response.json()
-
-# url = "https://example.com"  # Replace with your URL
-# asyncio.run(fetch(url))
+    timeout = httpx.Timeout(30.0, connect=10.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.get(google_api)
+        print("Successfully fetched")
+        return response.json()
 
 
-# print(f"PageSpeed API execution time: {time.time() - start_time} seconds")
-
-
-class PerformanceMetrics(object):
+class PerformanceMetrics:
     def __init__(self, json_string: json) -> None:
-        self.json_string =json_string
-    
+        self.json_string = json_string
+
     async def get_loading_metrics(self):
         print("Loading metrics")
         # Extract key loading metrics
@@ -50,12 +39,14 @@ class PerformanceMetrics(object):
         print("Lighthouse Audit")
         audits = self.json_string['lighthouseResult']['audits']
         for audit_name, audit_data in audits.items():
-            if audit_data.get('score') != None and audit_data.get('score') < 1:
+            if audit_data.get('score') is not None and audit_data.get('score') < 1:
                 print(f"Lighthouse Audit Issue: {audit_data['title']}")
                 print(f"  Description: {audit_data['description']}")
 
-async def performance_metrics(url:str):
-    # url = 'https://www.tryfix.ai/'
+
+async def performance_metrics(url: str):
+    """Run Lighthouse performance metrics."""
+
     json_string = await fetch(url)
     metrics = PerformanceMetrics(json_string)
 
@@ -66,6 +57,5 @@ async def performance_metrics(url:str):
         metrics.lighthouse_audit_issues()
     )
 
-# if __name__ == '__main__':
-#     asyncio.run(main())
-
+if __name__ == '__main__':
+    asyncio.run(performance_metrics("https://example.com"))

@@ -1,5 +1,4 @@
 import asyncio
-import aiofiles
 import shutil
 import os
 import time
@@ -11,8 +10,6 @@ from scrape.scrape_website_links import scrape_and_validate_links
 from llm.config import ApiClient
 from automation import device_dimensions, create_stealth_driver
 from automation.take_screenshot import TakeScreenshot
-from locust_test.locustfile_break_check import run_break_test
-from locust_test.locustfile_stress_check import run_stress_test
 from lighthouse_metrics import performance_metrics
 
 # Configure logging
@@ -45,21 +42,6 @@ async def capture_screenshots_for_urls(urls, save_dir:Optional[str] = "Z:/trryfi
         shutil.make_archive(save_dir, 'zip', save_dir)
 
 
-async def performance_test(URLS):
-    """Run performance tests asynchronously."""
-    try:
-        start_time = time.time()
-        file_path = 'performance_tests'
-        await asyncio.gather(
-            run_break_test(URLS=URLS, run_time=5),
-            run_stress_test(URLS=URLS, run_time=5)
-        )
-        logger.info(f"Performance tests completed in {time.time() - start_time} seconds.")
-    except Exception as e:
-        logger.error(f"Error running performance tests: {e}")
-    finally:
-        shutil.make_archive(file_path, 'zip', file_path)
-
 async def generate_valid_links(target_url):
     """Scrape and validate links, then generate a summary report using LLM."""
     try:
@@ -70,21 +52,12 @@ async def generate_valid_links(target_url):
             content = f'Give me links that are important website :- {links} that are very important'
             llm = ApiClient().generate_content(content)
             valid_links = json.loads(llm.text)[0]['response'][:4]
-
-            # Write links to valid_urls.txt asynchronously
-            async with aiofiles.open('valid_urls.txt', 'w') as file:
-                await file.writelines([f"{link}\n" for link in valid_links])
-            
-            logger.info(f"Generated valid links in {time.time() - start_time} seconds.")
-            return valid_links
+            logger.info('Total valid links generate: %d', len(valid_links))
         else:
             logger.info("No valid links found. Exiting...")
-            # Write links to valid_urls.txt asynchronously
-            async with aiofiles.open('valid_urls.txt', 'w') as file:
-                await file.writelines(target_url)
-
-            return target_url
-
+            return [target_url]
+        logger.info('Generating Valid Links takes %d seconds', time.time() - start_time)
+        return valid_links
     except Exception as e:
         logger.error(f"Error generating valid links: {e}")
         return []
@@ -99,13 +72,9 @@ async def run_performance_metrics(url):
     except Exception as e:
         logger.error(f"Error running Lighthouse performance metrics: {e}")
 
-async def main(target_url):
+async def main(target_url, save_dir: Optional[str] = "Z:/trryfix.ai/capture_screenshots"):
     try:
-        save_dir = "Z:/trryfix.ai/capture_screenshots"
         os.makedirs(save_dir, exist_ok=True)
-
-        # target_url = "https://aigrant.com/"
-        start_time = asyncio.get_event_loop().time()
 
         # Step 1: Scrape and validate links
         valid_links = await generate_valid_links(target_url)
@@ -116,13 +85,9 @@ async def main(target_url):
         # Step 2: Run all tasks asynchronously
         tasks = [
             capture_screenshots_for_urls(valid_links),
-            performance_test(valid_links),
-            run_performance_metrics(target_url)
+            run_performance_metrics(target_url),
         ]
         await asyncio.gather(*tasks)
-
-        elapsed_time = asyncio.get_event_loop().time() - start_time
-        logger.info(f"Process completed in {elapsed_time:.2f} seconds!")
         response = "The Task is done successfully"
         return response
     except Exception as e:
@@ -132,8 +97,6 @@ async def main(target_url):
         os.remove(save_dir)
 
 
-
 if __name__ == "__main__":
     target_url="https://aigrant.com/"
-    asyncio.run(main(target_url="https://aigrant.com/"))
-    # asyncio.run(generate_valid_links(target_url))    
+    asyncio.run(main(target_url))
