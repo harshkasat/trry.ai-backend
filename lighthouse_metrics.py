@@ -44,10 +44,10 @@ class PerformanceMetrics:
                 print(f"  Description: {audit_data['description']}")
 
 
-async def performance_metrics(url: str):
+async def performance_metrics(target_url: str):
     """Run Lighthouse performance metrics."""
 
-    json_string = await fetch(url)
+    json_string = await fetch(target_url)
     metrics = PerformanceMetrics(json_string)
 
     # Run all tasks concurrently
@@ -57,5 +57,5 @@ async def performance_metrics(url: str):
         metrics.lighthouse_audit_issues()
     )
 
-if __name__ == '__main__':
-    asyncio.run(performance_metrics("https://example.com"))
+# if __name__ == '__main__':
+#     asyncio.run(performance_metrics("https://example.com"))

@@ -99,7 +99,7 @@ async def run_locust_process(url: str, users: int, spawn_rate: int, run_time: st
         return process.returncode
         
     except Exception as e:
-        logger.error(f"Error running locust for {url}: {e}")
+        logger.error(f"Error running locust for Stress {url}: {e}")
         return 1
 
 class LoadTestRunner:
@@ -134,18 +134,19 @@ async def run_stress_test(urls: List[str], run_time: Optional[int] = 30):
         await runner.run_concurrent_tests(
             urls=urls,
             users=1000,
-            spawn_rate=1000,
+            spawn_rate=100,
             run_time=run_time_str
         )
-        logger.info("Load tests completed successfully")
+        logger.info("Stress tests completed successfully")
     except KeyboardInterrupt:
         logger.info("Tests interrupted by user")
     except Exception as e:
         logger.error(f"Tests failed with error: {e}")
 
-if __name__ == "__main__":
-    test_urls = [
-        "https://example.com",
-        "https://anotherexample.com"
-    ]
-    asyncio.run(run_stress_test(test_urls))
+# if __name__ == "__main__":
+#     test_urls = [
+#         "https://example.com",
+#         "https://anotherexample.com",
+#         "https://www.whoisharsh.space/",
+#     ]
+#     asyncio.run(run_stress_test(test_urls))

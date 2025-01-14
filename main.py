@@ -67,7 +67,7 @@ async def run_performance_metrics(url):
     """Run Lighthouse performance metrics."""
     try:
         start_time = time.time()
-        await performance_metrics(url=url)
+        await performance_metrics(target_url=url)
         logger.info(f"Lighthouse performance metrics completed in {time.time() - start_time} seconds.")
     except Exception as e:
         logger.error(f"Error running Lighthouse performance metrics: {e}")
@@ -93,10 +93,9 @@ async def main(target_url, save_dir: Optional[str] = "Z:/trryfix.ai/capture_scre
     except Exception as e:
         logger.error(f"Error occurred: {e}")
     finally:
-        sys.exit(0)
         os.remove(save_dir)
 
 
-if __name__ == "__main__":
-    target_url="https://aigrant.com/"
-    asyncio.run(main(target_url))
+# if __name__ == "__main__":
+#     target_url="https://aigrant.com/"
+#     asyncio.run(main(target_url))
