@@ -1,3 +1,5 @@
+from gevent import monkey
+monkey.patch_all()
 import sys
 from typing import List, Optional
 from pathlib import Path

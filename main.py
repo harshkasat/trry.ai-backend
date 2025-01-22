@@ -6,7 +6,7 @@ import sys
 import logging
 import json
 from typing import Optional
-from scrape.scrape_website_links import scrape_and_validate_links
+from scrape.scrape_website_links import fetch_and_check_links
 from llm.config import ApiClient
 from automation import device_dimensions, create_stealth_driver
 from automation.take_screenshot import TakeScreenshot
@@ -22,6 +22,17 @@ logging.basicConfig(
     ],
 )
 logger = logging.getLogger(__name__)
+
+def create_dummy_file(file_path: Optional[str] = 'valid_urls.txt'):
+
+    # Check if the file exists
+    if not os.path.exists(file_path):
+        # Create the file if it doesn't exist
+        with open(file_path, 'w') as file:
+            file.write("")  # Create an empty file
+        print(f"File created: {file_path}")
+    else:
+        print(f"File already exists: {file_path}")
 
 async def capture_screenshots_for_urls(urls, save_dir:Optional[str] = "Z:/trryfix.ai/capture_screenshots"):
     """Capture screenshots for multiple URLs and devices asynchronously."""
@@ -42,20 +53,31 @@ async def capture_screenshots_for_urls(urls, save_dir:Optional[str] = "Z:/trryfi
         shutil.make_archive(save_dir, 'zip', save_dir)
 
 
-async def generate_valid_links(target_url):
+def generate_valid_links(target_url, file_path: Optional[str] = 'valid_urls.txt'):
     """Scrape and validate links, then generate a summary report using LLM."""
     try:
         start_time = time.time()
-        links = await scrape_and_validate_links(target_url)
+        create_dummy_file(file_path)
+        links = fetch_and_check_links(target_url)
         if links:
-
             content = f'Give me links that are important website :- {links} that are very important'
             llm = ApiClient().generate_content(content)
             valid_links = json.loads(llm.text)[0]['response'][:4]
             logger.info('Total valid links generate: %d', len(valid_links))
+            # Write the list to the file line by line
+            with open(file_path, 'w') as file:
+                for url in valid_links:
+                    file.write(url + '\n')
         else:
-            logger.info("No valid links found. Exiting...")
-            return [target_url]
+            # Initialize an empty list
+            url_list = []
+            # Read the file and append each line to the list
+            with open(file_path, 'r') as file:
+                for line in file:
+                    # Strip newline characters and append to the list
+                    url_list.append(line.strip())
+            logger.info("No valid links found. Taking url from valid_url Exiting...")
+            return url_list
         logger.info('Generating Valid Links takes %d seconds', time.time() - start_time)
         return valid_links
     except Exception as e:
@@ -77,7 +99,7 @@ async def main(target_url, save_dir: Optional[str] = "Z:/trryfix.ai/capture_scre
         os.makedirs(save_dir, exist_ok=True)
 
         # Step 1: Scrape and validate links
-        valid_links = await generate_valid_links(target_url)
+        valid_links = generate_valid_links(target_url)
         if not valid_links:
             logger.info("No valid links found. Exiting...")
             return

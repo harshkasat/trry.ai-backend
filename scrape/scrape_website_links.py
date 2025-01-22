@@ -1,57 +1,81 @@
-import httpx
-import asyncio
+import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from typing import List
 import time
 
-async def fetch_links(url):
-    """Fetch and parse all links from the given URL."""
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(url, timeout=10.0)
-            await asyncio.sleep(2)  # Simulate delay
-            html = response.text
-            soup = BeautifulSoup(html, 'html.parser')
-            links = [urljoin(url, a['href']) for a in soup.find_all('a', href=True)]
-            return links
-        except Exception as e:
-            print(f"Error fetching links from {url}: {e}")
-            return []
+@dataclass
+class LinkStatus:
+    url: str
+    status_code: int
+    is_alive: bool
+    response_time: float
+    error: str = None
 
-async def check_link_status(link, client):
-    """Check the status code of a link using a HEAD request."""
+def check_link_health(url: str) -> LinkStatus:
+    """Check health of a single URL and return its status."""
     try:
-        response = await client.head(link, timeout=10.0)
-        return link, response.status_code
+        start_time = time.time()
+        response = requests.get(url, timeout=10.0, allow_redirects=True)
+        response_time = time.time() - start_time
+        
+        return LinkStatus(
+            url=url,
+            status_code=response.status_code,
+            is_alive=response.status_code == 200,
+            response_time=response_time
+        )
     except Exception as e:
-        return link, f"Error: {e}"
+        return LinkStatus(
+            url=url,
+            status_code=-1,
+            is_alive=False,
+            response_time=-1,
+            error=str(e)
+        )
 
-async def scrape_and_validate_links(url):
-    """Scrape links and validate them asynchronously."""
-    start_time = time.time()
-    valid_links = []
-    links = await fetch_links(url)
-    print(f"Found {len(links)} links.")
-
+def get_links_from_url(url: str) -> List[str]:
+    """Scrape all links from a single URL."""
     try:
-        async with httpx.AsyncClient() as client:
-            tasks = [check_link_status(link, client) for link in links]
-            results = await asyncio.gather(*tasks)
-
-        for link, status in results:
-            if not str(status).startswith('2'):
-                pass
-                # print(f"{link} - Status: {status}")
-            else:
-                valid_links.append(link)
-        print(f"Successfully scraped {len(valid_links)} valid links in {time.time() - start_time} seconds.")
-        return valid_links
+        response = requests.get(url, timeout=10.0)
+        html = response.text
+        soup = BeautifulSoup(html, 'html.parser')
+        links = [urljoin(url, a['href']) for a in soup.find_all('a', href=True)]
+        print(f"Found {len(links)} links on {url}")
+        return links
     except Exception as e:
-        print(f"Error generating valid links: {e}")
+        print(f"Error fetching links from {url}: {e}")
         return []
 
-async def main(url):
-    await scrape_and_validate_links(url)
+def check_links_health(links: List[str], max_workers: int = 20) -> List[LinkStatus]:
+    """Check health of multiple links concurrently."""
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        results = list(executor.map(check_link_health, links))
+    return results
 
-if __name__ == "__main__":
-    asyncio.run(main(url="https://aigrant.com/"))
+def fetch_and_check_links(start_url: str, max_workers: int = 20) -> List[LinkStatus]:
+    """Main function to fetch links and check their health."""
+    # Step 1: Get all links from the starting URL
+    print(f"Fetching links from {start_url}")
+    links = get_links_from_url(start_url)
+    
+    # Step 2: Check health of all links concurrently
+    print(f"Checking health of {len(links)} links...")
+    results = check_links_health(links, max_workers)
+    
+    return [r.url for r in results if r.is_alive]
+
+# if __name__ == "__main__":
+#     start_url = "https://aigrant.com/"
+#     start_time = time.time()
+    
+#     # Fetch and check all links
+#     results = fetch_and_check_links(start_url, max_workers=20)
+    
+#     # Print results
+#     # print_results(results)
+#     print(results)
+    
+#     print(f"\nTotal time taken: {time.time() - start_time:.2f} seconds")

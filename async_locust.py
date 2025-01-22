@@ -1,3 +1,5 @@
+from gevent import monkey
+monkey.patch_all()
 import asyncio
 import time
 import shutil
@@ -31,14 +33,14 @@ async def load_test_main(target_urls, file_path: Optional[str] = 'performance_te
 
     except Exception as e:
         logger.error(f"Error running performance tests: {e}")
-    # finally:
-        # shutil.make_archive(file_path, 'zip', file_path)
+    finally:
+        shutil.make_archive(file_path, 'zip', file_path)
 
-if __name__ == "__main__":
-    target_urls = [
-        "https://example.com",
-        "https://anotherexample.com",
-        "https://www.tryfix.ai/",
-        "https://www.whoisharsh.space/",
-    ]
-    asyncio.run(load_test_main(target_urls=target_urls))
+# if __name__ == "__main__":
+#     target_urls = [
+#         "https://example.com",
+#         "https://anotherexample.com",
+#         "https://www.tryfix.ai/",
+#         "https://www.whoisharsh.space/",
+#     ]
+#     asyncio.run(load_test_main(target_urls=target_urls))
