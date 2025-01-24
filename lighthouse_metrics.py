@@ -1,16 +1,23 @@
-import httpx
+import requests
 import asyncio
 import json
 
 
-async def fetch(url):
-    google_api = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=" + url
-    timeout = httpx.Timeout(30.0, connect=10.0)
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.get(google_api)
+def fetch(url):
+    """Fetch the URL using HTTPX."""
+    try:
+        google_api = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=" + url
+        # timeout = httpx.Timeout(30.0, connect=10.0)
+        # async with httpx.AsyncClient(timeout=timeout) as client:
+        #     response = await client.get(google_api)
+        #     print("Successfully fetched")
+        #     return response.json()
+        response = requests.get(google_api, timeout=20.0)
         print("Successfully fetched")
         return response.json()
-
+    except Exception as e:
+        print(f"Error fetching URL: {e}")
+        return {}
 
 class PerformanceMetrics:
     def __init__(self, json_string: json) -> None:
@@ -46,8 +53,10 @@ class PerformanceMetrics:
 
 async def performance_metrics(target_url: str):
     """Run Lighthouse performance metrics."""
-
-    json_string = await fetch(target_url)
+    print('light house performance metrics', target_url)
+    import time
+    start_time = time.time()
+    json_string = fetch(target_url)
     metrics = PerformanceMetrics(json_string)
 
     # Run all tasks concurrently
@@ -56,6 +65,7 @@ async def performance_metrics(target_url: str):
         metrics.get_lighthouse_metrics(),
         metrics.lighthouse_audit_issues()
     )
+    print(f"Lighthouse performance metrics completed in {time.time() - start_time} seconds.")
 
 # if __name__ == '__main__':
-#     asyncio.run(performance_metrics("https://example.com"))
+#     asyncio.run(performance_metrics(target_url='https://aigrant.com/'))

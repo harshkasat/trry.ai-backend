@@ -7,46 +7,51 @@ from PIL import Image
 
 from selenium.webdriver.support.ui import WebDriverWait
 from llm.config import ApiClient
+import sys
+import logging
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,  # Set to DEBUG for more details
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler("script.log"),
+        logging.StreamHandler(sys.stdout),
+    ],
+)
+logger = logging.getLogger(__name__)
 
 # Semaphore to limit concurrency
-MAX_CONCURRENT_TASKS = 10
+MAX_CONCURRENT_TASKS = 20
 semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
 
 class TakeScreenshot:
     def __init__(self, driver):
         self.driver = driver
-        self.wait = WebDriverWait(driver, 10)
 
-    async def get_screenshot(self, url, filename=None):
-        """Async function to take a screenshot."""
+    async def capture_screenshot(self, url, device, save_dir):
+        """Capture screenshot for a URL with specific device dimensions."""
         try:
-            await asyncio.to_thread(self.driver.get, url)
-            # await asyncio.sleep(0.5)  # Allow async sleep
-            await asyncio.to_thread(self.driver.save_screenshot, filename)
-            print(f"Screenshot saved as {filename}")
+            # Create directory if it doesn't exist
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
 
-            # Pass image processing back to async context
-            image = await asyncio.to_thread(Image.open, filename)
+            # File path for saving the screenshot
+            file_name = f"{device}_{str(url).split('//')[1].split('/')[0]}.png"
+            save_path = os.path.join(save_dir, file_name)
+
+            # Navigate to URL (blocking call)
+            self.driver.get(url)
+            logger.info(f"Navigated to {url} on {device}")
+
+            # Save the screenshot (blocking call)
+            self.driver.save_screenshot(save_path)
+            logger.info(f"Screenshot saved: {save_path}")
+            # Process the image (if needed, move this logic to another function for clarity)
+            image = await Image.open(save_path)
             issue_identify_by_llm = await ApiClient().generate_content_for_image(image=image)
 
             return json.loads(issue_identify_by_llm.text)[0]['response']
-            
-        except Exception as e:
-            print(f"Error saving screenshot: {e}")
-        finally:
-            await asyncio.to_thread(self.driver.quit)
-            
 
-    async def capture_screenshot(self, url, device, save_dir):
-        """Async function to capture screenshot for a URL with specific device dimensions."""
-        async with semaphore:
-            try:
-                if not os.path.exists(save_dir):
-                    os.makedirs(save_dir)
-            except OSError as e:
-                if e.errno != errno.EEXIST:
-                    raise
-            file_name = f"{device}_{str(url).split('//')[1].split('/')[0]}.png"
-            save_path = os.path.join(save_dir, file_name)
-            await self.get_screenshot(url, save_path)
+        except Exception as e:
+            logger.error(f"Error capturing screenshot for {url} on {device}: {e}")
 

@@ -47,13 +47,13 @@ async def add_urls_to_fix():
     # Validate using Pydantic
     target_url = URLModel(**json_data)
     # Step 1: Scrape and validate links
-    valid_links = await generate_valid_links(target_url)
+    valid_links = generate_valid_links(target_url.url)
     
     try:
         if isinstance(valid_links, list):
             # Step 2: Run all tasks asynchronously
-            await capture_screenshots_for_urls(valid_links, "screenshots")
-            return {"message": f"Captured screenshots for {len(valid_links)} URLs"}
+            await capture_screenshots_for_urls(valid_links)
+            return f"<h1> Captured screenshots for {len(valid_links)} URLs done successfully</h1>"
     except Exception as e:
         return f'<h1> {str(e)} </h1>', 500
 
@@ -68,7 +68,7 @@ async def lighthouse_test():
         # Validate using Pydantic
         target_url = URLModel(**json_data)
         response = await performance_metrics(target_url=target_url.url)
-        return {"message": f"Lighthouse test results for {target_url.url}: {response}"}
+        return f" <h1> Lighthouse test results for {target_url.url}: {response} </h1>"
     except Exception as e:
         return f'<h1> {str(e)} </h1>', 500
 
@@ -112,8 +112,24 @@ async def gernerate_valid_links():
     except Exception as e:
         return f'<h1> {str(e)} </h1>', 500
 
-if __name__ == "__main__":
-    from gevent.pywsgi import WSGIServer
 
-    http_server = WSGIServer(("0.0.0.0", 5000), app)
-    http_server.serve_forever()
+from automation import create_stealth_driver
+@app.route("/test_driver", methods=["GET"])
+def test_driver():
+    try:
+        device = 'tablet'
+        driver = create_stealth_driver(device)  # Call directly
+        driver.get("https://www.google.com")
+        screenshot_path = "test_screenshot.png"
+        driver.save_screenshot(screenshot_path)
+        driver.quit()
+        return jsonify({"message": f"Driver initialized, screenshot saved at {screenshot_path}"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# if __name__ == "__main__":
+#     from gevent.pywsgi import WSGIServer
+
+#     http_server = WSGIServer(("0.0.0.0", 5000), app)
+#     http_server.serve_forever()

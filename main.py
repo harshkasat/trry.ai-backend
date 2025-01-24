@@ -5,7 +5,7 @@ import time
 import sys
 import logging
 import json
-from typing import Optional
+from typing import Optional, List
 from scrape.scrape_website_links import fetch_and_check_links
 from llm.config import ApiClient
 from automation import device_dimensions, create_stealth_driver
@@ -34,22 +34,29 @@ def create_dummy_file(file_path: Optional[str] = 'valid_urls.txt'):
     else:
         print(f"File already exists: {file_path}")
 
-async def capture_screenshots_for_urls(urls, save_dir:Optional[str] = "Z:/trryfix.ai/capture_screenshots"):
-    """Capture screenshots for multiple URLs and devices asynchronously."""
+async def capture_screenshots_for_urls(urls, save_dir: Optional[str] = "Z:/trryfix.ai/capture_screenshots"):
+    """
+    Capture screenshots for multiple URLs and devices asynchronously.
+    """
     try:
-        tasks = []
         start_time = time.time()
-        for url in urls:
-            for device in device_dimensions:
-                logger.info(f"Processing {url} for device {device}")
-                driver = await asyncio.to_thread(create_stealth_driver, device)
-                screenshot = TakeScreenshot(driver)
-                tasks.append(screenshot.capture_screenshot(url, device, save_dir))
+
+        # Create tasks for each URL and device
+        tasks = [
+            create_stealth_driver(device=device, url=url, save_dir=save_dir)
+            for url in urls
+            for device in device_dimensions
+        ]
+
+        # Execute tasks concurrently
         await asyncio.gather(*tasks)
-        logger.info(f"Screenshot capturing completed in {time.time() - start_time} seconds.")
+
+        logger.info(f"Screenshot capturing completed in {time.time() - start_time:.2f} seconds.")
     except Exception as e:
         logger.error(f"Error capturing screenshots: {e}")
+
     finally:
+        # Create a zip archive of the screenshots
         shutil.make_archive(save_dir, 'zip', save_dir)
 
 
@@ -107,7 +114,7 @@ async def main(target_url, save_dir: Optional[str] = "Z:/trryfix.ai/capture_scre
         # Step 2: Run all tasks asynchronously
         tasks = [
             capture_screenshots_for_urls(valid_links),
-            run_performance_metrics(target_url),
+            # run_performance_metrics(target_url),
         ]
         await asyncio.gather(*tasks)
         response = "The Task is done successfully"
@@ -120,4 +127,5 @@ async def main(target_url, save_dir: Optional[str] = "Z:/trryfix.ai/capture_scre
 
 # if __name__ == "__main__":
 #     target_url="https://aigrant.com/"
-#     asyncio.run(main(target_url))
+#     # asyncio.run(main(target_url))
+#     asyncio.run(capture_screenshots_for_urls([target_url]))
