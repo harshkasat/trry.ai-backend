@@ -113,23 +113,8 @@ async def gernerate_valid_links():
         return f'<h1> {str(e)} </h1>', 500
 
 
-from automation import create_stealth_driver
-@app.route("/test_driver", methods=["GET"])
-def test_driver():
-    try:
-        device = 'tablet'
-        driver = create_stealth_driver(device)  # Call directly
-        driver.get("https://www.google.com")
-        screenshot_path = "test_screenshot.png"
-        driver.save_screenshot(screenshot_path)
-        driver.quit()
-        return jsonify({"message": f"Driver initialized, screenshot saved at {screenshot_path}"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+if __name__ == "__main__":
+    from gevent.pywsgi import WSGIServer
 
-
-# if __name__ == "__main__":
-#     from gevent.pywsgi import WSGIServer
-
-#     http_server = WSGIServer(("0.0.0.0", 5000), app)
-#     http_server.serve_forever()
+    http_server = WSGIServer(("0.0.0.0", 5000), app)
+    http_server.serve_forever()
