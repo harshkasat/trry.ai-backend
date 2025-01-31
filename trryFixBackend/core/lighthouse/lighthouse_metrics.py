@@ -12,7 +12,7 @@ def fetch(url):
         #     response = await client.get(google_api)
         #     print("Successfully fetched")
         #     return response.json()
-        response = requests.get(google_api, timeout=20.0)
+        response = requests.get(google_api)
         print("Successfully fetched")
         return response.json()
     except Exception as e:
@@ -20,44 +20,87 @@ def fetch(url):
         return {}
 
 class PerformanceMetrics:
-    def __init__(self, json_string: json) -> None:
+    def __init__(self, json_string: json, dynamic_file_path: str) -> None:
         self.json_string = json_string
+        self.metrics_results = {}
+        self.file_path = dynamic_file_path 
 
     async def get_loading_metrics(self):
-        print("Loading metrics")
-        # Extract key loading metrics
-        loading_experience_metrics = self.json_string['loadingExperience']['metrics']
-        print("Key Performance Metrics:")
-        print(f"  Cumulative Layout Shift Score: {loading_experience_metrics['CUMULATIVE_LAYOUT_SHIFT_SCORE']}")
-        print(f"  First Contentful Paint: {loading_experience_metrics['FIRST_CONTENTFUL_PAINT_MS']} ms")
-        print(f"  Interaction to Next Paint: {loading_experience_metrics['INTERACTION_TO_NEXT_PAINT']} ms")
+        try:
+            print("Loading metrics")
+            # Extract key loading metrics
+            loading_experience_metrics = self.json_string['loadingExperience']['metrics']
+            print("Key Performance Metrics:")
+            print(f"  Cumulative Layout Shift Score: {loading_experience_metrics['CUMULATIVE_LAYOUT_SHIFT_SCORE']}")
+            print(f"  First Contentful Paint: {loading_experience_metrics['FIRST_CONTENTFUL_PAINT_MS']} ms")
+            print(f"  Largest Contentful Paint: {loading_experience_metrics['LARGEST_CONTENTFUL_PAINT_MS']} ms")
+
+            self.metrics_results["loading_metrics"] = {
+                "Cumulative Layout Shift Score": loading_experience_metrics['CUMULATIVE_LAYOUT_SHIFT_SCORE'],
+                "First Contentful Paint (ms)": loading_experience_metrics['FIRST_CONTENTFUL_PAINT_MS'],
+                "Largest Contentful Paint (ms)": loading_experience_metrics['LARGEST_CONTENTFUL_PAINT_MS'],
+            }
+            # Remove any None values (if extraction failed for a specific metric)
+            self.metrics_results["loading_metrics"] = {k: v for k, v in self.metrics_results["loading_metrics"].items() if v is not None}
+        except Exception as e:
+            print(f"Error extracting loading metrics: {e}")
 
     async def get_lighthouse_metrics(self):
-        # Extract key lighthouse_metrics
-        print("Lighthouse metrics")
-        lighthouse_metrics = self.json_string['lighthouseResult']['audits']['metrics']['details']['items'][0]
-        print(f"  Lighthouse First Contentful Paint: {lighthouse_metrics['firstContentfulPaint']} ms")
-        print(f"  Lighthouse Largest Contentful Paint: {lighthouse_metrics['largestContentfulPaint']} ms")
-        print(f"  Lighthouse Speed Index: {lighthouse_metrics['speedIndex']}")
-        print(f"  Lighthouse Total Blocking Time: {lighthouse_metrics['totalBlockingTime']} ms")
+        try:
+            # Extract key lighthouse_metrics
+            print("Lighthouse metrics")
+            lighthouse_metrics = self.json_string['lighthouseResult']['audits']['metrics']['details']['items'][0]
+            print(f"  Lighthouse First Contentful Paint: {lighthouse_metrics['firstContentfulPaint']} ms")
+            print(f"  Lighthouse Largest Contentful Paint: {lighthouse_metrics['largestContentfulPaint']} ms")
+            print(f"  Lighthouse Speed Index: {lighthouse_metrics['speedIndex']}")
+            print(f"  Lighthouse Total Blocking Time: {lighthouse_metrics['totalBlockingTime']} ms")
+
+            self.metrics_results["lighthouse_metrics"] = {
+                "Lighthouse First Contentful Paint (ms)": lighthouse_metrics['firstContentfulPaint'],
+                "Lighthouse Largest Contentful Paint (ms)": lighthouse_metrics['largestContentfulPaint'],
+                "Lighthouse Speed Index": lighthouse_metrics['speedIndex'],
+                "Lighthouse Total Blocking Time (ms)": lighthouse_metrics['totalBlockingTime'],      
+            }
+            # Remove any None values (if extraction failed for a specific metric)
+            self.metrics_results["lighthouse_metrics"] = {k: v for k, v in self.metrics_results["lighthouse_metrics"].items() if v is not None}
+        except Exception as e:
+            print(f"Error extracting lighthouse metrics: {e}")
 
     async def lighthouse_audit_issues(self):
-        # Extract Lighthouse audit issues
-        print("Lighthouse Audit")
-        audits = self.json_string['lighthouseResult']['audits']
-        for audit_name, audit_data in audits.items():
-            if audit_data.get('score') is not None and audit_data.get('score') < 1:
-                print(f"Lighthouse Audit Issue: {audit_data['title']}")
-                print(f"  Description: {audit_data['description']}")
+        try:
+            # Extract Lighthouse audit issues
+            print("Lighthouse Audit")
+            audit_issues = {}
+            audits = self.json_string['lighthouseResult']['audits']
+            for audit_name, audit_data in audits.items():
+                if audit_data.get('score') is not None and audit_data.get('score') <= 1:
+                    print(f"Lighthouse Audit Issue: {audit_data['title']}")
+                    print(f"  Description: {audit_data['description']}")
+                    audit_issues[audit_name] = {
+                        "Title": audit_data['title'],
+                        "Description": audit_data['description']
+                    }
+            self.metrics_results["lighthouse_audit_issues"] = audit_issues
+        except Exception as e:
+            print(f"Error extracting Lighthouse audit issues: {e}")
+    
+    async def save_to_json(self):
+        try:
+            print("Saving Metrics to JSON File...")
+            with open(self.file_path, "w") as json_file:
+                json.dump(self.metrics_results, json_file, indent=4)
+            print(f"Metrics saved successfully to {self.file_path}")
+        except Exception as e:
+            print(f"Error saving metrics to JSON: {e}")
 
 
-async def performance_metrics(target_url: str):
+async def performance_metrics(target_url: str, dynamic_file_path: str):
     """Run Lighthouse performance metrics."""
     print('light house performance metrics', target_url)
     import time
     start_time = time.time()
     json_string = fetch(target_url)
-    metrics = PerformanceMetrics(json_string)
+    metrics = PerformanceMetrics(json_string, dynamic_file_path=dynamic_file_path)
 
     # Run all tasks concurrently
     await asyncio.gather(
@@ -65,7 +108,8 @@ async def performance_metrics(target_url: str):
         metrics.get_lighthouse_metrics(),
         metrics.lighthouse_audit_issues()
     )
+    await metrics.save_to_json()
     print(f"Lighthouse performance metrics completed in {time.time() - start_time} seconds.")
 
-# if __name__ == '__main__':
-#     asyncio.run(performance_metrics(target_url='https://aigrant.com/'))
+if __name__ == '__main__':
+    asyncio.run(performance_metrics(target_url='https://aigrant.com/'))
