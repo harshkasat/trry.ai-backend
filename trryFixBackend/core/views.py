@@ -36,7 +36,7 @@ class TestWebsitesPerformanceView(APIView):
 
             json_data = json.loads(request.body)
             target_url = URLModel(**json_data)
-            response = main(target_url=target_url.url)
+            response = asyncio.run(main(target_url=target_url.url))
             return Response({"message": f"URL {target_url} {response}"})
         except Exception as e:
             return Response(
@@ -59,7 +59,7 @@ class CaptureScreenshotsView(APIView):
         
         try:
             if isinstance(valid_links, list):
-                capture_screenshots_for_urls(valid_links)
+                asyncio.run(capture_screenshots_for_urls(valid_links))
                 return Response({
                     "message": f"Captured screenshots for {len(valid_links)} URLs done successfully"
                 })
@@ -80,9 +80,9 @@ class LighthouseTestView(APIView):
 
             json_data = json.loads(request.body)
             target_url = URLModel(**json_data)
-            response = performance_metrics(target_url=target_url.url)
+            response = asyncio.run(performance_metrics(target_url=target_url.url))
             return Response({
-                "message": f"Lighthouse test results for {target_url.url}: {response}"
+                "message": f"Lighthouse test results for {target_url.url}"
             })
         except Exception as e:
             return Response(

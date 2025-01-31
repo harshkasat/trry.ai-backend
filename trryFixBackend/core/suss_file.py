@@ -34,7 +34,7 @@ def create_dummy_file(file_path: Optional[str] = 'valid_urls.txt'):
     else:
         print(f"File already exists: {file_path}")
 
-async def capture_screenshots_for_urls(urls, save_dir: Optional[str] = "Z:/trryfix.ai/capture_screenshots"):
+async def capture_screenshots_for_urls(urls, save_dir: Optional[str] = "Z:/trryfix.ai/trryfix-backend/trryFixBackend/capture_screenshots"):
     """
     Capture screenshots for multiple URLs and devices asynchronously.
     """
@@ -114,7 +114,7 @@ async def main(target_url, save_dir: Optional[str] = "Z:/trryfix.ai/capture_scre
         # Step 2: Run all tasks asynchronously
         tasks = [
             capture_screenshots_for_urls(valid_links),
-            # run_performance_metrics(target_url),
+            run_performance_metrics(target_url),
         ]
         await asyncio.gather(*tasks)
         response = "The Task is done successfully"

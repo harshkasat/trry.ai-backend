@@ -47,7 +47,7 @@ class TakeScreenshot:
             self.driver.save_screenshot(save_path)
             logger.info(f"Screenshot saved: {save_path}")
             # Process the image (if needed, move this logic to another function for clarity)
-            image = await Image.open(save_path)
+            image = await asyncio.to_thread(Image.open, save_path)
             issue_identify_by_llm = await ApiClient().generate_content_for_image(image=image)
 
             return json.loads(issue_identify_by_llm.text)[0]['response']
