@@ -1,7 +1,9 @@
 import requests
 import asyncio
 import json
-
+import os
+from core.utils import sanitize_filename
+from core.pydantic_model import URLModel
 
 def fetch(url):
     """Fetch the URL using HTTPX."""
@@ -94,13 +96,19 @@ class PerformanceMetrics:
             print(f"Error saving metrics to JSON: {e}")
 
 
-async def performance_metrics(target_url: str, dynamic_file_path: str):
+async def performance_metrics(target_url:URLModel):
     """Run Lighthouse performance metrics."""
     print('light house performance metrics', target_url)
     import time
     start_time = time.time()
-    json_string = fetch(target_url)
-    metrics = PerformanceMetrics(json_string, dynamic_file_path=dynamic_file_path)
+    json_string = fetch(target_url.url)
+
+    # Ensure the directory exists
+    os.makedirs("reports", exist_ok=True)
+    filename = sanitize_filename(target_url.url.__add__(target_url.name)) + '.json'
+    file_path = os.path.join("reports", filename)
+
+    metrics = PerformanceMetrics(json_string, dynamic_file_path=file_path)
 
     # Run all tasks concurrently
     await asyncio.gather(
@@ -109,7 +117,9 @@ async def performance_metrics(target_url: str, dynamic_file_path: str):
         metrics.lighthouse_audit_issues()
     )
     await metrics.save_to_json()
-    print(f"Lighthouse performance metrics completed in {time.time() - start_time} seconds.")
 
-if __name__ == '__main__':
-    asyncio.run(performance_metrics(target_url='https://aigrant.com/'))
+    print(f"Lighthouse performance metrics completed in {time.time() - start_time} seconds.")
+    return file_path
+
+# if __name__ == '__main__':
+#     asyncio.run(performance_metrics(target_url='https://aigrant.com/'))

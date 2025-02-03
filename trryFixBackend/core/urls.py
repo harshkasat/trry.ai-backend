@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     HealthCheckView, 
     GreetingView,
-    TestWebsitesPerformanceView,
+    WebsitesPerformanceView,
     CaptureScreenshotsView,
     LighthouseTestView,
     LoadTestsView,
@@ -12,7 +12,7 @@ from .views import (
 urlpatterns = [
     path('health/', HealthCheckView.as_view(), name='health-check'),
     path('', GreetingView.as_view(), name='greeting'),
-    path('test_websites_performance/', TestWebsitesPerformanceView.as_view(), name='test-websites-performance'),
+    path('websites_performance/', WebsitesPerformanceView.as_view(), name='test-websites-performance'),
     path('capture_screenshots_websites/', CaptureScreenshotsView.as_view(), name='capture-screenshots'),
     path('lighthouse_test/', LighthouseTestView.as_view(), name='lighthouse-test'),
     path('load_tests/', LoadTestsView.as_view(), name='load-tests'),

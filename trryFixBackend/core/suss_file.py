@@ -11,6 +11,8 @@ from core.llm.config import ApiClient
 from core.automation import device_dimensions, create_stealth_driver
 from core.automation.take_screenshot import TakeScreenshot
 from core.lighthouse.lighthouse_metrics import performance_metrics
+from core.utils import zip_file
+from core.pydantic_model import URLModel
 
 # Configure logging
 logging.basicConfig(
@@ -33,32 +35,6 @@ def create_dummy_file(file_path: Optional[str] = 'valid_urls.txt'):
         print(f"File created: {file_path}")
     else:
         print(f"File already exists: {file_path}")
-
-async def capture_screenshots_for_urls(urls, save_dir: Optional[str] = "Z:/trryfix.ai/trryfix-backend/trryFixBackend/capture_screenshots"):
-    """
-    Capture screenshots for multiple URLs and devices asynchronously.
-    """
-    try:
-        start_time = time.time()
-
-        # Create tasks for each URL and device
-        tasks = [
-            create_stealth_driver(device=device, url=url, save_dir=save_dir)
-            for url in urls
-            for device in device_dimensions
-        ]
-
-        # Execute tasks concurrently
-        await asyncio.gather(*tasks)
-
-        logger.info(f"Screenshot capturing completed in {time.time() - start_time:.2f} seconds.")
-    except Exception as e:
-        logger.error(f"Error capturing screenshots: {e}")
-
-    finally:
-        # Create a zip archive of the screenshots
-        shutil.make_archive(save_dir, 'zip', save_dir)
-
 
 def generate_valid_links(target_url, file_path: Optional[str] = 'valid_urls.txt'):
     """Scrape and validate links, then generate a summary report using LLM."""
@@ -91,38 +67,58 @@ def generate_valid_links(target_url, file_path: Optional[str] = 'valid_urls.txt'
         logger.error(f"Error generating valid links: {e}")
         return []
 
+async def capture_screenshots_for_urls(target_url:URLModel, screenshot_save_path: Optional[str] = "reports/capture_screenshots"):
+    """
+    Capture screenshots for multiple URLs and devices asynchronously.
+    """
+    try:
+        start_time = time.time()
+        urls = generate_valid_links(target_url.url)
 
-async def run_performance_metrics(url):
+        # Create tasks for each URL and device
+        tasks = [
+            create_stealth_driver(device=device, url=url, save_dir=screenshot_save_path)
+            for url in urls
+            for device in device_dimensions
+        ]
+
+        # Execute tasks concurrently
+        await asyncio.gather(*tasks)
+
+        logger.info(f"Screenshot capturing completed in {time.time() - start_time:.2f} seconds.")
+    except Exception as e:
+        logger.error(f"Error capturing screenshots: {e}")
+    
+    # finally:
+    #     if os.path.exists(screenshot_save_path):
+    #         # Delete the screenshots directory
+    #         shutil.rmtree(screenshot_save_path)
+    #         logger.info(f"Deleted screenshots directory: {screenshot_save_path}")
+
+
+async def run_performance_metrics(target_url:URLModel):
     """Run Lighthouse performance metrics."""
     try:
         start_time = time.time()
-        await performance_metrics(target_url=url)
+        await performance_metrics(target_url=target_url)
         logger.info(f"Lighthouse performance metrics completed in {time.time() - start_time} seconds.")
     except Exception as e:
         logger.error(f"Error running Lighthouse performance metrics: {e}")
 
-async def main(target_url, save_dir: Optional[str] = "Z:/trryfix.ai/capture_screenshots"):
+async def main(target_url:URLModel, save_dir: Optional[str] = "Z:/trryfix.ai/capture_screenshots"):
     try:
-        os.makedirs(save_dir, exist_ok=True)
-
-        # Step 1: Scrape and validate links
-        valid_links = generate_valid_links(target_url)
-        if not valid_links:
-            logger.info("No valid links found. Exiting...")
-            return
 
         # Step 2: Run all tasks asynchronously
+        print(target_url)
         tasks = [
-            capture_screenshots_for_urls(valid_links),
-            run_performance_metrics(target_url),
+            capture_screenshots_for_urls(target_url=target_url),
+            # run_performance_metrics(target_url=target_url),
         ]
         await asyncio.gather(*tasks)
-        response = "The Task is done successfully"
-        return response
+        # filename = zip_file(url=target_url.url.__add__(target_url.name), source_path='Z:/trryfix.ai/trryfix-backend/trryFixBackend/reports')
+        return 'Z:/trryfix.ai/trryfix-backend/trryFixBackend/reports'
     except Exception as e:
         logger.error(f"Error occurred: {e}")
-    finally:
-        os.remove(save_dir)
 
 
 # if __name__ == "__main__":

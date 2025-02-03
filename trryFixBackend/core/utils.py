@@ -1,6 +1,7 @@
 import re
 import zipfile
 from pathlib import Path
+from typing import Optional
 
 import os
 
@@ -13,32 +14,23 @@ def sanitize_filename(url):
 
 
 # Create zipfile
-def zip_file(url, source_path):
-    """Compress a file or directory into a ZIP archive, preserving subdirectory structure."""
+def zip_file(main_dir: Optional[str] = 'reports', output_zip:Optional[str] = 'reports.zip'):
     try:
-        os.makedirs(source_path, exist_ok=True)
-        os.makedirs("reports", exist_ok=True)
-        sanitized = sanitize_filename(url)
-        zip_path = os.path.join("reports", f"{sanitized}.zip")
+        with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for root, dirs, files in os.walk(main_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    # Create relative path starting from main directory
+                    arcname = os.path.relpath(file_path, start=os.path.dirname(main_dir))
+                    zipf.write(file_path, arcname)
 
-        if not os.path.exists(source_path):
-            raise FileNotFoundError(f"Path not found: {source_path}")
-
-        with zipfile.ZipFile(zip_path, 'w') as zipf:
-            path = Path(source_path)
-            if path.is_dir():
-                for file in path.rglob("*"):
-                    if file.is_file():
-                        zipf.write(file, file.relative_to(path.parent))
-            else:
-                zipf.write(path, path.name)
-
-        return zip_path
+        print(f"ZIP archive created sucessfully : {output_zip}")
+        return output_zip
     except Exception as e:
         print(f"Error creating ZIP archive: {e}")
-        if os.path.exists(zip_path):
+        if os.path.exists(main_dir):
             try:
-                os.remove(zip_path)
+                os.remove(main_dir)
             except:
                 pass
         return None

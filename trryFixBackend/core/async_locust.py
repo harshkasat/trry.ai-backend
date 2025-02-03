@@ -1,8 +1,10 @@
 import asyncio
 import time
-import shutil
-from typing import Optional, List
+from core.suss_file import generate_valid_links
+from core.utils import zip_file
 import logging
+from core.pydantic_model import URLModel
+from typing import Optional
 
 # Configure logging
 logging.basicConfig(
@@ -12,11 +14,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def load_test_main(target_urls):
+async def load_test_main(target_url:URLModel, load_test_source_path:Optional[str] = "reports/performance_tests"):
     try:
         start_time = time.time()
         tasks = []
         logger.info("Starting performance tests...")
+        target_urls = generate_valid_links(target_url.url)
 
         from gevent import monkey
         monkey.patch_all()

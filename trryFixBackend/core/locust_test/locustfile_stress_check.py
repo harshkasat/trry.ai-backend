@@ -60,7 +60,7 @@ def save_results(environment, **kwargs):
                         getattr(environment.stats.total, 'start_time', 0)
     }
 
-    results_dir = Path("performance_tests/stress_check")
+    results_dir = Path("reports/stress_check")
     results_dir.mkdir(parents=True, exist_ok=True)
 
     url_part = environment.host.replace('https://', '').replace('http://', '').replace('/', '_').replace('.', '_')
@@ -106,10 +106,6 @@ async def run_locust_process(url: str, users: int, spawn_rate: int, run_time: st
 
 class LoadTestRunner:
     """Manages execution of load tests for URLs"""
-    
-    def __init__(self, base_dir: str = "performance_tests"):
-        self.base_dir = Path(base_dir)
-        self.base_dir.mkdir(parents=True, exist_ok=True)
 
     async def run_concurrent_tests(self, urls: List[str], users: int = 1000, 
                                  spawn_rate: int = 1000, run_time: str = "30") -> None:
