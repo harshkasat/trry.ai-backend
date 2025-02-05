@@ -46,11 +46,38 @@ class TakeScreenshot:
             # Save the screenshot (blocking call)
             self.driver.save_screenshot(save_path)
             logger.info(f"Screenshot saved: {save_path}")
-            # Process the image (if needed, move this logic to another function for clarity)
-            image = await asyncio.to_thread(Image.open, save_path)
-            issue_identify_by_llm = await ApiClient().generate_content_for_image(image=image)
 
-            return json.loads(issue_identify_by_llm.text)[0]['response']
+            try:
+                # Process the image (if needed, move this logic to another function for clarity)
+                try:
+                    image = await asyncio.to_thread(Image.open, save_path)
+                except Exception as e:
+                    logger.error(f"Error opening image: {e}")
+                    return
+                issue_identify_by_llm = await ApiClient().generate_content_for_image(image=image)
+                response = json.loads(issue_identify_by_llm.text)[0]['response']
+
+                # Path for the main JSON file to store all responses
+                main_response_file = os.path.join(save_dir, "all_responses.json")
+
+                # Load existing responses if the file exists
+                if os.path.exists(main_response_file):
+                    with open(main_response_file, 'r') as file:
+                        all_responses = json.load(file)
+                else:
+                    all_responses = []
+
+                # Append the new response
+                all_responses.append({"file_path": save_path, "response": response})
+
+                # Save all responses back to the main JSON file
+                with open(main_response_file, 'w') as file:
+                    json.dump(all_responses, file, indent=4)
+                logger.info(f"Response saved to main JSON file: {main_response_file}")
+            except Exception as e:
+                logger.error(f"Error processing image: {e}")
+
+            return response
 
         except Exception as e:
             logger.error(f"Error capturing screenshot for {url} on {device}: {e}")

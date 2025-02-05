@@ -53,8 +53,6 @@ class WebsitesPerformanceView(APIView):
             print("Running Main file")
             asyncio.run(main(target_url=target_url))
             filename = zip_file()
-
-            # Create response with auto-cleanup
             
             file_obj = open(filename, 'rb')
             response = DeleteOnCloseFileResponse(
@@ -70,6 +68,11 @@ class WebsitesPerformanceView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        finally:
+            # Clean up the reports directory
+            if os.path.exists("reports"):
+                shutil.rmtree("reports")
+                print("Deleted reports directory")
 
 class CaptureScreenshotsView(APIView):
     def post(self, request):
@@ -100,6 +103,11 @@ class CaptureScreenshotsView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        # finally:
+        #     # Clean up the reports directory
+        #     if os.path.exists("reports"):
+        #         shutil.rmtree("reports")
+        #         print("Deleted reports directory")
 
 class LighthouseTestView(APIView):
     def post(self, request):
@@ -114,20 +122,20 @@ class LighthouseTestView(APIView):
             
             file_path = asyncio.run(performance_metrics(target_url=target_url))
             # Return the JSON file as a downloadable response
-            response = FileResponse(open(file_path, 'rb'), as_attachment=True, filename=file_path)
+            file_obj = open(file_path, 'rb')
+            response = DeleteOnCloseFileResponse(
+                file_obj,
+                as_attachment=True,
+                filename=os.path.basename(file_path),
+                file_to_delete=file_path
+            )
             return response
         except Exception as e:
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        finally:
-            # Cleanup 'reports' directory
-            try:
-                if os.path.exists('reports'):
-                    shutil.rmtree('reports')
-            except Exception as e:
-                print(f"Error deleting source directory: {e}")
+       
 
 class LoadTestsView(APIView):
     def post(self, request):
@@ -172,19 +180,11 @@ class LoadTestsView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         # finally:
-        #     # Cleanup source_path (if needed)
-        #     try:
-        #         if 'source_path' in locals() and os.path.exists(source_path):
-        #             shutil.rmtree(source_path)
-        #     except Exception as e:
-        #         print(f"Error deleting source directory: {e}")
+        #     # Clean up the reports directory
+        #     if os.path.exists("reports"):
+        #         shutil.rmtree("reports")
+        #         print("Deleted reports directory")
 
-        #     # Fallback cleanup for filename (if not already deleted by response)
-        #     try:
-        #         if filename and os.path.exists(filename):
-        #             os.remove(filename)
-        #     except Exception as e:
-        #         print(f"Error deleting file: {e}")
 
 class GenerateValidLinksView(APIView):
     def post(self, request):

@@ -9,11 +9,6 @@ def fetch(url):
     """Fetch the URL using HTTPX."""
     try:
         google_api = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=" + url
-        # timeout = httpx.Timeout(30.0, connect=10.0)
-        # async with httpx.AsyncClient(timeout=timeout) as client:
-        #     response = await client.get(google_api)
-        #     print("Successfully fetched")
-        #     return response.json()
         response = requests.get(google_api)
         print("Successfully fetched")
         return response.json()

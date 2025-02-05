@@ -44,7 +44,7 @@ def generate_valid_links(target_url, file_path: Optional[str] = 'valid_urls.txt'
         links = fetch_and_check_links(target_url)
         if links:
             content = f'Give me links that are important website :- {links} that are very important'
-            llm = ApiClient().generate_content(content)
+            llm = ApiClient().generate_valdi_urls(content)
             valid_links = json.loads(llm.text)[0]['response'][:4]
             logger.info('Total valid links generate: %d', len(valid_links))
             # Write the list to the file line by line
@@ -74,6 +74,7 @@ async def capture_screenshots_for_urls(target_url:URLModel, screenshot_save_path
     try:
         start_time = time.time()
         urls = generate_valid_links(target_url.url)
+        print(urls)
 
         # Create tasks for each URL and device
         tasks = [
@@ -112,11 +113,9 @@ async def main(target_url:URLModel, save_dir: Optional[str] = "Z:/trryfix.ai/cap
         print(target_url)
         tasks = [
             capture_screenshots_for_urls(target_url=target_url),
-            # run_performance_metrics(target_url=target_url),
+            run_performance_metrics(target_url=target_url),
         ]
         await asyncio.gather(*tasks)
-        # filename = zip_file(url=target_url.url.__add__(target_url.name), source_path='Z:/trryfix.ai/trryfix-backend/trryFixBackend/reports')
-        return 'Z:/trryfix.ai/trryfix-backend/trryFixBackend/reports'
     except Exception as e:
         logger.error(f"Error occurred: {e}")
 

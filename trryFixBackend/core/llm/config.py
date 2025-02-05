@@ -13,7 +13,7 @@ class ApiClient():
     def configure_llm(self, schema=None):
         try:
 
-            llm = genai.GenerativeModel('models/gemini-1.5-flash',
+            llm = genai.GenerativeModel('models/gemini-2.0-flash',
                 generation_config=genai.GenerationConfig(
                     response_mime_type="application/json",
                     response_schema=list[LlmResponse]
@@ -28,7 +28,7 @@ class ApiClient():
     
     async def configure_vision_model(self, schema=None):
         try:
-            vision_model = genai.GenerativeModel('gemini-pro-vision', 
+            vision_model = genai.GenerativeModel('models/gemini-2.0-flash', 
                 generation_config=genai.GenerationConfig(
                     response_mime_type="application/json",
                     response_schema=list[LlmResponse]
@@ -43,7 +43,7 @@ class ApiClient():
             return None
 
 
-    def generate_content(self, contents, schema=None):
+    def generate_valdi_urls(self, contents, schema=None):
         try:
             llm = self.configure_llm(schema=schema)
             response = llm.generate_content(contents=contents,
@@ -53,16 +53,28 @@ class ApiClient():
         except Exception as e:
             print(f"Failed to generate content: {e}")
             return None
-    
+
     async def generate_content_for_image(self, image):
         """Async function to generate content from image."""
         try:
+            import time
+            import json
+            start = time.time()
             llm = self.configure_llm()
             response = await asyncio.to_thread(
                 llm.generate_content, [PROMPT, image],
                 safety_settings=SAFE_SETTINGS,
             )
+            print(f"Time taken to generate content: {time.time() - start}")
             return response
         except Exception as e:
             print(f"Failed to generate content: {e}")
             return None
+
+# if __name__ == '__main__':
+#     from PIL import Image
+#     import json
+#     api = ApiClient()
+#     image = Image.open('reports/capture_screenshots/desktop_drive.google.com.png')
+#     response = asyncio.run(api.generate_content_for_image(image))
+#     print(type(json.loads(response.text)[0]['response'][0]))
