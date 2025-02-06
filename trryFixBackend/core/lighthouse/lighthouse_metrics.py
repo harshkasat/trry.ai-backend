@@ -93,7 +93,6 @@ class PerformanceMetrics:
 
 async def performance_metrics(target_url:URLModel):
     """Run Lighthouse performance metrics."""
-    print('light house performance metrics', target_url)
     import time
     start_time = time.time()
     json_string = fetch(target_url.url)

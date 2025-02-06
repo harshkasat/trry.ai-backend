@@ -74,7 +74,6 @@ async def capture_screenshots_for_urls(target_url:URLModel, screenshot_save_path
     try:
         start_time = time.time()
         urls = generate_valid_links(target_url.url)
-        print(urls)
 
         # Create tasks for each URL and device
         tasks = [
@@ -110,7 +109,6 @@ async def main(target_url:URLModel, save_dir: Optional[str] = "Z:/trryfix.ai/cap
     try:
 
         # Step 2: Run all tasks asynchronously
-        print(target_url)
         tasks = [
             capture_screenshots_for_urls(target_url=target_url),
             run_performance_metrics(target_url=target_url),

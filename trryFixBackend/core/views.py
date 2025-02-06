@@ -103,11 +103,11 @@ class CaptureScreenshotsView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        # finally:
-        #     # Clean up the reports directory
-        #     if os.path.exists("reports"):
-        #         shutil.rmtree("reports")
-        #         print("Deleted reports directory")
+        finally:
+            # Clean up the reports directory
+            if os.path.exists("reports"):
+                shutil.rmtree("reports")
+                print("Deleted reports directory")
 
 class LighthouseTestView(APIView):
     def post(self, request):
@@ -179,11 +179,11 @@ class LoadTestsView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        # finally:
-        #     # Clean up the reports directory
-        #     if os.path.exists("reports"):
-        #         shutil.rmtree("reports")
-        #         print("Deleted reports directory")
+        finally:
+            # Clean up the reports directory
+            if os.path.exists("reports"):
+                shutil.rmtree("reports")
+                print("Deleted reports directory")
 
 
 class GenerateValidLinksView(APIView):
