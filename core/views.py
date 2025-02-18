@@ -10,7 +10,7 @@ from typing import Optional
 # from suss_file import generate_valid_links, main, capture_screenshots_for_urls, performance_metrics
 from core.suss_file import generate_valid_links, capture_screenshots_for_urls, performance_metrics, main
 from core.pydantic_model import URLModel
-from core.async_locust import load_test_main
+from core.load_test import load_test_main
 from core.utils import zip_file
 import asyncio
 import shutil
@@ -206,3 +206,43 @@ class GenerateValidLinksView(APIView):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class ImageReview(APIView):
+    
+    def get(self, request):
+        from PIL import Image
+        from core.llm.config import ApiClient
+        import requests
+        from io import BytesIO
+        import asyncio
+        try:
+            if not request.body:
+                return Response(
+                    {"error": "Request body must be JSON"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Process the image (if needed, move this logic to another function for clarity)
+            try:
+                refined_url = requests.get('https://plus.unsplash.com/premium_photo-1666672388644-2d99f3feb9f1?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8anBnfGVufDB8fDB8fHww')
+                image = Image.open(BytesIO(refined_url.content))
+            except Exception as e:
+                return Response({
+                    "message": f"Error opening image: {e}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            issue_identify_by_llm = asyncio.run(ApiClient().generate_content_for_image(image=image))
+            llm_response = json.loads(issue_identify_by_llm.text)[0]['response']
+            return Response({
+                "message": f"Response: {llm_response}"
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        finally:
+            # Clean up the reports directory
+            if os.path.exists("reports"):
+                shutil.rmtree("reports")
+                print("Deleted reports directory")

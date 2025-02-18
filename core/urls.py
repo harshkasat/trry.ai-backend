@@ -6,7 +6,8 @@ from .views import (
     CaptureScreenshotsView,
     LighthouseTestView,
     LoadTestsView,
-    GenerateValidLinksView
+    GenerateValidLinksView,
+    ImageReview
 )
 
 urlpatterns = [
@@ -17,4 +18,5 @@ urlpatterns = [
     path('lighthouse_test/', LighthouseTestView.as_view(), name='lighthouse-test'),
     path('load_tests/', LoadTestsView.as_view(), name='load-tests'),
     path('generate_valid_links/', GenerateValidLinksView.as_view(), name='generate-valid-links'),
+    path('image_review/', ImageReview.as_view(), name='image_review'),
 ]

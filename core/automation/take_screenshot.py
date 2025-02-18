@@ -1,11 +1,7 @@
-import time
 import json
 import asyncio
 import os
-import errno
 from PIL import Image
-
-from selenium.webdriver.support.ui import WebDriverWait
 from core.llm.config import ApiClient
 import sys
 import logging
@@ -21,7 +17,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Semaphore to limit concurrency
-MAX_CONCURRENT_TASKS = 20
+MAX_CONCURRENT_TASKS = 40
 semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
 
 class TakeScreenshot:
@@ -56,6 +52,7 @@ class TakeScreenshot:
                     return
                 issue_identify_by_llm = await ApiClient().generate_content_for_image(image=image)
                 response = json.loads(issue_identify_by_llm.text)[0]['response']
+                logger.info("LLm successfully processed image")
 
                 # Path for the main JSON file to store all responses
                 main_response_file = os.path.join(save_dir, "all_responses.json")

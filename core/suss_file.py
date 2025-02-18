@@ -47,20 +47,8 @@ def generate_valid_links(target_url, file_path: Optional[str] = 'valid_urls.txt'
             llm = ApiClient().generate_valdi_urls(content)
             valid_links = json.loads(llm.text)[0]['response'][:4]
             logger.info('Total valid links generate: %d', len(valid_links))
-            # Write the list to the file line by line
-            with open(file_path, 'w') as file:
-                for url in valid_links:
-                    file.write(url + '\n')
-        else:
-            # Initialize an empty list
-            url_list = []
-            # Read the file and append each line to the list
-            with open(file_path, 'r') as file:
-                for line in file:
-                    # Strip newline characters and append to the list
-                    url_list.append(line.strip())
-            logger.info("No valid links found. Taking url from valid_url Exiting...")
-            return url_list
+
+            return valid_links
         logger.info('Generating Valid Links takes %d seconds', time.time() - start_time)
         return valid_links
     except Exception as e:

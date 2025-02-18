@@ -1,0 +1,12 @@
+selenium
+pillow
+aiohttp
+google-genai
+google-generativeai
+pydantic
+beautifulsoup4
+gunicorn
+Django
+djangorestframework
+django-cors-headers
+python-dotenv

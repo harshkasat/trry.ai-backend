@@ -17,7 +17,7 @@ class ApiClient():
                 generation_config=genai.GenerationConfig(
                     response_mime_type="application/json",
                     response_schema=list[LlmResponse]
-                ))            
+                ))
 
             if llm is None:
                 raise ValueError("LLM component is None")
@@ -25,23 +25,6 @@ class ApiClient():
         except Exception as e:
             print(f"Failed to configure LLM: {e}")
             return None
-    
-    async def configure_vision_model(self, schema=None):
-        try:
-            vision_model = genai.GenerativeModel('models/gemini-2.0-flash', 
-                generation_config=genai.GenerationConfig(
-                    response_mime_type="application/json",
-                    response_schema=list[LlmResponse]
-                )
-            )
-
-            if vision_model is None:
-                raise ValueError("Vision model component is None")
-            return vision_model
-        except Exception as e:
-            print(f"Failed to configure vision model: {e}")
-            return None
-
 
     def generate_valdi_urls(self, contents, schema=None):
         try:
@@ -58,7 +41,6 @@ class ApiClient():
         """Async function to generate content from image."""
         try:
             import time
-            import json
             start = time.time()
             llm = self.configure_llm()
             response = await asyncio.to_thread(

@@ -5,6 +5,7 @@ import sys
 import asyncio
 from typing import Optional
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from core.automation.take_screenshot import TakeScreenshot
 # Define the dimensions for different devices
 device_dimensions = {
@@ -48,14 +49,16 @@ async def create_stealth_driver(device: str, url: str, save_dir: Optional[str] =
             chrome_options.add_argument(f"--window-size={device_dimensions[device][0]},{device_dimensions[device][1]}")
 
             # Create the WebDriver (blocking call)
-            driver = webdriver.Chrome(options=chrome_options)
+            # driver = webdriver.Chrome(options=chrome_options)
+            driver = webdriver.Remote(
+                command_executor='http://selenium:4444/wd/hub',
+                options=chrome_options
+            )
             logger.info(f"Driver created for {device} in {time.time() - start_time:.2f} seconds")
 
             # Capture the screenshot
             screenshot = TakeScreenshot(driver)
-            json_response = await screenshot.capture_screenshot(url, device, save_dir)
-            return json_response
-
+            await screenshot.capture_screenshot(url, device, save_dir)
 
         except Exception as e:
             logger.error(f"Error in create_stealth_driver for {url} on {device}: {e}")
