@@ -4,9 +4,11 @@ from django.shortcuts import redirect
 from django.core.exceptions import ValidationError
 from urllib.parse import urlencode
 from typing import Dict, Any
+from django.contrib.auth import get_user_model
 import requests
-import jwt
+from rest_framework_simplejwt.tokens import RefreshToken
 import logging
+from authapp.serializers import GoogleSocialAuthSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -14,9 +16,10 @@ GOOGLE_ACCESS_TOKEN_OBTAIN_URL = 'https://oauth2.googleapis.com/token'
 GOOGLE_USER_INFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo'
 LOGIN_URL = f'{settings.BASE_API_URL}/internal/login'
 
+User = get_user_model()
+
 # Exchange authorization token with access token
 def google_get_access_token(code: str, redirect_uri: str) -> str:
-    logger.info('google get access token', code)
     logger.info('Exchanging authorization code for access token.')
     data = {
         'code': code,
@@ -44,12 +47,18 @@ def google_get_user_info(access_token: str) -> Dict[str, Any]:
         params={'access_token': access_token}
     )
 
-    if not response.ok:
+    
+    userinfo_serializer = GoogleSocialAuthSerializer(data=response.json())
+    userinfo_serializer.is_valid(raise_exception=True)
+
+    validated_data = userinfo_serializer.validated_data
+    if 'error' in validated_data:
         logger.error('Failed to obtain user info from Google.')
         raise ValidationError('Could not get user info from Google.')
     
+    
     logger.info('User info obtained successfully.')
-    return response.json()
+    return validated_data
 
 
 def get_user_data(validated_data):
@@ -66,20 +75,35 @@ def get_user_data(validated_data):
     
     access_token = google_get_access_token(code=code, redirect_uri=redirect_uri)
     user_data = google_get_user_info(access_token=access_token)
-    logger.info('User data obtained successfully', user_data)
-    # Creates user in DB if first time login
-    # User.objects.get_or_create(
-    #     username = user_data['email'],
-    #     email = user_data['email'],
-    #     first_name = user_data.get('given_name'), 
-    #     last_name = user_data.get('family_name')
-    # )
-    
-    
+    split_name = user_data.get('name').split(' ')
+    if user_data is not None:
+        logger.info('User data obtained successfully')
+        print('Email', user_data.get('email'))
+        print('First Name', user_data.get('given_name'))
+        split_name = user_data.get('name').split(' ')
+        print('Last Name', split_name[-1])
+        print('Picture', user_data['picture'])
+        user, created = User.objects.get_or_create(
+            email=user_data['email'],
+            defaults={
+                'first_name': user_data.get('given_name'),
+                'last_name': split_name[-1],
+                'profile_picture': user_data['picture']
+            }
+        )
+    else:
+        logger.error('Failed to obtain user data from Google.')
+        raise ValidationError('Could not get user data from Google.')
+
+    # Create jwt refresh and access tokens
+    token = RefreshToken.for_user(user)
     profile_data = {
         'email': user_data['email'],
         'first_name': user_data.get('given_name'),
-        'last_name': user_data.get('family_name'),
+        'last_name': split_name[-1],
+        'profile_picture': user_data['picture'],
+        'refresh_token': str(token),
+        'access_token': str(token.access_token)
     }
     logger.info('User data processed successfully.')
     return profile_data

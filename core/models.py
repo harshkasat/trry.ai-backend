@@ -1,7 +1,9 @@
 from django.db import models
+from authapp.models import User
 
 class URLTable(models.Model):
     url_id = models.AutoField(primary_key=True)
+    user_email = models.ForeignKey(User, on_delete=models.CASCADE, related_name='urls', default=None)
     url_website = models.CharField(max_length=255, null=False)
 
     def __str__(self):
