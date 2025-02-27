@@ -72,8 +72,9 @@ class GoogleLoginApi(APIView):
 
         # Return user data as JSON response
         # response =  Response(user_data)
-        response = redirect("http://localhost:3000")
+        response = redirect("http://localhost:3000/dashboard")
         response.set_cookie('access_token', user_data['access_token'], httponly=True, secure=True, samesite='Lax')
         response.set_cookie('refresh_token', user_data['refresh_token'], httponly=True, secure=True, samesite='Lax')
+        response.content = user_data
         return response
         
