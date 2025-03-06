@@ -1,4 +1,5 @@
 from selenium import webdriver
+import os
 import time
 import logging
 import sys
@@ -7,10 +8,14 @@ from typing import Optional
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from core.automation.take_screenshot import TakeScreenshot
+from dotenv import load_dotenv
+load_dotenv()
+
 # Define the dimensions for different devices
 device_dimensions = {
     'normal_phone': (375, 667),  # Normal phone (portrait)
-    'desktop': (1920, 1080)  # Desktop
+    'tablet': (768, 1024),  # Tablet
+    'desktop': (1920, 1080),  # Desktop
 }
 # Configure logging
 logging.basicConfig(
@@ -27,7 +32,7 @@ logger = logging.getLogger(__name__)
 MAX_CONCURRENT_TASKS = 20
 semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)  # Adjust MAX_CONCURRENT_TASKS based on system capacity
 
-async def create_stealth_driver(device: str, url: str, save_dir: Optional[str] = "Z:/trryfix.ai/capture_screenshots"):
+async def create_stealth_driver(url: str, device: Optional[str] = 'desktop', save_dir: Optional[str] = "Z:/trryfix.ai/capture_screenshots"):
     """
     Creates a Chrome driver with stealth settings and captures a screenshot.
     """
@@ -42,23 +47,19 @@ async def create_stealth_driver(device: str, url: str, save_dir: Optional[str] =
             chrome_options.add_argument("--no-sandbox")
             chrome_options.add_argument("--disable-dev-shm-usage")
 
-            # Device-specific settings
-            if device == "normal_phone":
-                chrome_options.add_argument("--user-agent=some-mobile-user-agent")
-
-            chrome_options.add_argument(f"--window-size={device_dimensions[device][0]},{device_dimensions[device][1]}")
 
             # Create the WebDriver (blocking call)
-            # driver = webdriver.Chrome(options=chrome_options)
-            driver = webdriver.Remote(
+            if os.getenv('LOCAL_WEBDRIVE'):
+                driver = webdriver.Chrome(options=chrome_options)
+            else:
+                driver = webdriver.Remote(
                 command_executor='http://selenium:4444/wd/hub',
                 options=chrome_options
-            )
-            logger.info(f"Driver created for {device} in {time.time() - start_time:.2f} seconds")
+                )
 
             # Capture the screenshot
             screenshot = TakeScreenshot(driver)
-            await screenshot.capture_screenshot(url, device, save_dir)
+            await screenshot.capture_screenshot(url=url, devices=device_dimensions, save_dir=save_dir)
 
         except Exception as e:
             logger.error(f"Error in create_stealth_driver for {url} on {device}: {e}")

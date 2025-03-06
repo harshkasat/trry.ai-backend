@@ -24,7 +24,7 @@ class TakeScreenshot:
     def __init__(self, driver):
         self.driver = driver
 
-    async def capture_screenshot(self, url, device, save_dir):
+    async def capture_screenshot(self, url, devices, save_dir):
         """Capture screenshot for a URL with specific device dimensions."""
         try:
             # Create directory if it doesn't exist
@@ -32,16 +32,25 @@ class TakeScreenshot:
                 os.makedirs(save_dir)
 
             # File path for saving the screenshot
-            file_name = f"{device}_{str(url).split('//')[1].split('/')[0]}.png"
-            save_path = os.path.join(save_dir, file_name)
+            # TODO : this need to move to bottom
 
             # Navigate to URL (blocking call)
             self.driver.get(url)
-            logger.info(f"Navigated to {url} on {device}")
+            for key, value in devices.items():
+                cdp_command = {
+                    "width": value[0],
+                    "height": value[1],
+                    "deviceScaleFactor": 1,
+                    "mobile": True if value[0] < 768 else False, #Example of mobile detection.
+                }
+                self.driver.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", cdp_command)
+                logger.info(f"Navigated to {url} on {devices}")
 
-            # Save the screenshot (blocking call)
-            self.driver.save_screenshot(save_path)
-            logger.info(f"Screenshot saved: {save_path}")
+                file_name = f"{key}_{str(url).split('//')[1].split('/')[0]}.png"
+                save_path = os.path.join(save_dir, file_name)
+                # Save the screenshot (blocking call)
+                self.driver.save_screenshot(save_path)
+                logger.info(f"Screenshot saved: {save_path}")
 
             try:
                 # Process the image (if needed, move this logic to another function for clarity)
@@ -77,5 +86,4 @@ class TakeScreenshot:
             return response
 
         except Exception as e:
-            logger.error(f"Error capturing screenshot for {url} on {device}: {e}")
-
+            logger.error(f"Error capturing screenshot for {url} on {devices}: {e}")

@@ -65,9 +65,8 @@ async def capture_screenshots_for_urls(target_url:URLModel, screenshot_save_path
 
         # Create tasks for each URL and device
         tasks = [
-            create_stealth_driver(device=device, url=url, save_dir=screenshot_save_path)
+            create_stealth_driver(url=url, save_dir=screenshot_save_path)
             for url in urls
-            for device in device_dimensions
         ]
 
         # Execute tasks concurrently
@@ -76,12 +75,6 @@ async def capture_screenshots_for_urls(target_url:URLModel, screenshot_save_path
         logger.info(f"Screenshot capturing completed in {time.time() - start_time:.2f} seconds.")
     except Exception as e:
         logger.error(f"Error capturing screenshots: {e}")
-    
-    # finally:
-    #     if os.path.exists(screenshot_save_path):
-    #         # Delete the screenshots directory
-    #         shutil.rmtree(screenshot_save_path)
-    #         logger.info(f"Deleted screenshots directory: {screenshot_save_path}")
 
 
 async def run_performance_metrics(target_url:URLModel):

@@ -7,7 +7,6 @@ from rest_framework.response import Response
 from rest_framework import status
 from pydantic import BaseModel, ValidationError
 from typing import Optional
-# from suss_file import generate_valid_links, main, capture_screenshots_for_urls, performance_metrics
 from core.suss_file import generate_valid_links, capture_screenshots_for_urls, performance_metrics, main
 from core.pydantic_model import URLModel
 from core.load_test import load_test_main
@@ -15,6 +14,9 @@ from core.utils import zip_file
 import asyncio
 import shutil
 import json
+
+# authentication and permision classes
+from rest_framework.permissions import AllowAny
 
 # Custom FileResponse to delete the file after sending
 class DeleteOnCloseFileResponse(FileResponse):
@@ -36,6 +38,8 @@ class HealthCheckView(APIView):
         return Response({"message": "Server is running Health Check"})
 
 class GreetingView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
     def get(self, request):
         return Response({"message": "Server start with Django REST framework"})
 
@@ -53,7 +57,6 @@ class WebsitesPerformanceView(APIView):
             print("Running Main file")
             asyncio.run(main(target_url=target_url))
             filename = zip_file()
-            
             file_obj = open(filename, 'rb')
             response = DeleteOnCloseFileResponse(
                 file_obj,
@@ -75,6 +78,8 @@ class WebsitesPerformanceView(APIView):
                 print("Deleted reports directory")
 
 class CaptureScreenshotsView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
     def post(self, request):
         if not request.body:
             return Response(
