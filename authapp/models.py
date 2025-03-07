@@ -24,7 +24,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     credit_left = models.IntegerField(default=5)
-    profile_picture = models.ImageField(upload_to="profile_pictures/", null=True, blank=True)
+    
+    # Change ImageField to URLField
+    profile_picture = models.URLField(max_length=500, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -36,3 +38,6 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+    
+    def get_profile_picture(self):
+        return self.profile_picture or "https://default-profile-picture.com/default.jpg"

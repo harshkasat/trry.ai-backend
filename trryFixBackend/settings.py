@@ -27,15 +27,15 @@ SECRET_KEY = 'django-insecure-%%eg!o1h(0o0m34(=1g%apv0_v_-b0z3ar7b5ng_b=f86%$e=d
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 # Allow all frontend origins (For Development)
 CORS_ALLOW_ALL_ORIGINS = True  
 
 # Alternatively, allow only specific frontend URLs
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Next.js Dev Server
-    "https://your-production-site.com",  # Your deployed Next.js site
+    "http://localhost:3000",  # ✅ Frontend URL
+    "http://127.0.0.1:8000",  # ✅ Backend URL
 ]
 
 # Allow HTTP methods (GET, POST, OPTIONS, PUT, DELETE)
@@ -64,6 +64,18 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Add BASE_API_URL setting
 BASE_API_URL = 'http://127.0.0.1:8000'
+CSRF_COOKIE_HTTPONLY = True
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = False  # Set to True if using HTTPS
+CSRF_COOKIE_SECURE = False  # Set to True if using HTTPS
+CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:8000"]  # ✅ Needed for cookies
+CORS_ALLOW_HEADERS = [
+    "content-type",
+    "authorization",  # ✅ Required for Authorization header
+    "x-csrf-token",
+]
+
+
 
 
 # Application definition
@@ -97,7 +109,9 @@ ROOT_URLCONF = 'trryFixBackend.urls'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'authapp.authentication.CookieJWTAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -189,3 +203,7 @@ AUTH_USER_MODEL = "authapp.User"
 GOOGLE_CLIENT_ID = conf.GOOGLE_CLIENT_ID
 GOOGLE_CLIENT_SECRET = conf.GOOGLE_CLIENT_SECRET
 GOOGLE_REDIRECT_URI = conf.GOOGLE_REDIRECT_URI
+SESSION_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SECURE = True  # Needed for SameSite=None
+CSRF_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SECURE = True

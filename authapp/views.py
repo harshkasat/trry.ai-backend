@@ -6,6 +6,7 @@ from rest_framework.response import Response
 # Create your views here.
 from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework_simplejwt.tokens import RefreshToken
+from authapp.authentication import CookieJWTAuthentication
 from authapp.google_auth import get_user_data
 from django.shortcuts import redirect
 from django.conf import settings
@@ -65,16 +66,41 @@ class GoogleLoginApi(APIView):
         logger.info(validated_data)
         if 'error' in validated_data:
             return HttpResponse('Google login failed')
-        user_data = get_user_data(validated_data)
+        user_data, refresh_token, access_token  = get_user_data(validated_data)
         
-        # user = User.objects.get(email=user_data['email'])
+        # user = User.objects.get(email=user_data['email
+        # '])
         # login(request, user)
 
         # Return user data as JSON response
         # response =  Response(user_data)
         response = redirect("http://localhost:3000/dashboard")
-        response.set_cookie('access_token', user_data['access_token'], httponly=True, secure=True, samesite='Lax')
-        response.set_cookie('refresh_token', user_data['refresh_token'], httponly=True, secure=True, samesite='Lax')
-        response.content = user_data
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=False,  
+            secure=True,  # Ensure secure flag is set
+            samesite="None",  # Needed for cross-site requests
+        )
+
+        response.set_cookie(
+            key='refresh_token',
+            value= refresh_token,
+            httponly=False,
+            secure=True,  # Ensure secure flag is set
+            samesite="None",  # Needed for cross-site requests
+        )
+
         return response
-        
+
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        return Response({
+            "email": user.email,
+            "first name": user.first_name,
+            "last name": user.last_name,
+            "profile picture": user.profile_picture,
+        })

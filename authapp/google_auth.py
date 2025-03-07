@@ -78,11 +78,6 @@ def get_user_data(validated_data):
     split_name = user_data.get('name').split(' ')
     if user_data is not None:
         logger.info('User data obtained successfully')
-        print('Email', user_data.get('email'))
-        print('First Name', user_data.get('given_name'))
-        split_name = user_data.get('name').split(' ')
-        print('Last Name', split_name[-1])
-        print('Picture', user_data['picture'])
         user, created = User.objects.get_or_create(
             email=user_data['email'],
             defaults={
@@ -101,9 +96,7 @@ def get_user_data(validated_data):
         'email': user_data['email'],
         'first_name': user_data.get('given_name'),
         'last_name': split_name[-1],
-        'profile_picture': user_data['picture'],
-        'refresh_token': str(token),
-        'access_token': str(token.access_token)
+        'profile_picture': user_data['picture']
     }
     logger.info('User data processed successfully.')
-    return profile_data
+    return profile_data, str(token), str(token.access_token)
